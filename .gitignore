@@ -1,0 +1,27 @@
+# Ignore below file patterns
+
+# Mac finder hidden directories
+.DS_Store
+
+# Exlude any temp directories and files
+*.temp
+*.tmp
+/temp
+
+# Ignore env files
+.env
+
+# Ignore git file, folder and sub-folders
+.git/**
+
+# Ignore output folder which only stores test data files
+/samples/output/**
+
+# Local .terraform directories
+**/.terraform/*
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Ignore terraform lock files
+*.lock.hcl
