@@ -32,7 +32,7 @@ resource "aws_security_group" "sagemaker_sg" {
 # IAM execution role for Sagemaker Studio Users
 
 resource "aws_iam_role" "ss_exec_role" {
-  name                      = "${var.ss_domain_name}_execution_role" 
+  name                      = "${var.ss_domain_name}-execution-role" 
   path                      = "/"
   assume_role_policy        = data.aws_iam_policy_document.ss_assume_role_policy.json
 }
@@ -49,7 +49,7 @@ data "aws_iam_policy_document" "ss_assume_role_policy" {
 }
 
 resource "aws_iam_policy" "ss_exec_policy" {
-  name                      = "${var.ss_domain_name}_execution_policy"
+  name                      = "${var.ss_domain_name}-execution-policy"
   path                      = "/"
   description               = "IAM policy with permissions for ${var.ss_domain_name} Sagemaker Studio Domain"
 
@@ -122,16 +122,16 @@ resource "aws_iam_policy" "ss_exec_policy" {
         ],
         Resource    = "*"
       },      
-      /*
       {
-        Action      = [
-          "*",
-        ]
-        Resource    = "*"
-        Effect      = "Allow"
-        Sid         = "TemporaryFullAccess"
+        Effect      = "Allow",
+        Action      = "codeartifact:GetAuthorizationToken",
+        Resource    = aws_codeartifact_domain.main.arn # "arn:aws:codeartifact:<region>:<account_no>:domain/<domain_name>"
       },
-      */ 
+      {
+        Effect      = "Allow",
+        Action      = "sts:GetServiceBearerToken",
+        Resource    = "*"
+      }
     ]
   })
 }
@@ -141,12 +141,34 @@ resource "aws_iam_role_policy_attachment" "ss_exec_policy_attachment" {
   policy_arn                = aws_iam_policy.ss_exec_policy.arn
 }
 
+
+# Attach AmazonSageMakerFullAccess to Studio Execution Role 
 data "aws_iam_policy" "sagemaker_managed_policy" {
   name                      = "AmazonSageMakerFullAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "ss_exec_managed_policy_attachment" {
+resource "aws_iam_role_policy_attachment" "ss_exec_managed_policy_attachment_1" {
   role                      = aws_iam_role.ss_exec_role.name
   policy_arn                = data.aws_iam_policy.sagemaker_managed_policy.arn
+}
+
+# Attach AmazonSageMakerCanvasFullAccess and AmazonSageMakerCanvasAIServicesAccess
+# managed policies to enable support for Canvas in SageMaker Studio 
+data "aws_iam_policy" "sagemaker_canvas_managed_policy" {
+  name                      = "AmazonSageMakerCanvasFullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "ss_exec_managed_policy_attachment_2" {
+  role                      = aws_iam_role.ss_exec_role.name
+  policy_arn                = data.aws_iam_policy.sagemaker_canvas_managed_policy.arn
+}
+
+data "aws_iam_policy" "sagemaker_canvas_ai_managed_policy" {
+  name                      = "AmazonSageMakerCanvasAIServicesAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "ss_exec_managed_policy_attachment_3" {
+  role                      = aws_iam_role.ss_exec_role.name
+  policy_arn                = data.aws_iam_policy.sagemaker_canvas_ai_managed_policy.arn
 }
 
