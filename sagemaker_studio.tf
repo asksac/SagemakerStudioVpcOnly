@@ -39,17 +39,30 @@ resource "aws_sagemaker_domain" "sagemaker_studio_domain" {
 
   app_network_access_type   = "VpcOnly"
 
+  # key used to encrypt studio domain's EFS volume
+  kms_key_id                = aws_kms_key.ss_efs_key.arn
+
   retention_policy {
-    home_efs_file_system    = "Delete" # "Retain"
+    home_efs_file_system    = "Retain" # or "Delete"
   }
 
+  default_space_settings {
+    execution_role          = aws_iam_role.ss_exec_role.arn
+    security_groups         = [ aws_security_group.sagemaker_sg.id ]
+  }
   default_user_settings {
     execution_role          = aws_iam_role.ss_exec_role.arn
     security_groups         = [ aws_security_group.sagemaker_sg.id ]
 
+    canvas_app_settings {
+      workspace_settings {
+        s3_artifact_path    = "s3://${aws_s3_bucket.ss_bucket.id}/canvas/"
+      }
+    }
+
     jupyter_server_app_settings {
       default_resource_spec {
-        instance_type       = "system"
+        instance_type       = "system" # must be system
       }
     }
 
@@ -62,7 +75,7 @@ resource "aws_sagemaker_domain" "sagemaker_studio_domain" {
 
     sharing_settings {
       notebook_output_option  = "Allowed"
-      s3_output_path          = "s3://${aws_s3_bucket.ss_bucket.id}/notebook-sharing"
+      s3_output_path          = "s3://${aws_s3_bucket.ss_bucket.id}/notebook-sharing/"
     }
   }
 }
@@ -77,7 +90,7 @@ resource "aws_sagemaker_user_profile" "ss_default_user" {
   user_profile_name         = "default-user"
 
   user_settings {
-    # keeping the same execution role as the domain
+    # keeping the same execution role as the studio domain
     execution_role          = aws_iam_role.ss_exec_role.arn
   }
 }
@@ -91,26 +104,31 @@ https://aws.amazon.com/blogs/machine-learning/dive-deep-into-amazon-sagemaker-st
 
 
 # JupyterServer – The JupyterServer app runs the Jupyter server. Each user has a unique and 
-# dedicated JupyterServer app running inside the domain.
+# dedicated JupyterServer app running inside the studio domain.
 resource "aws_sagemaker_app" "ss_jupyter_server_app" {
   domain_id                 = aws_sagemaker_domain.sagemaker_studio_domain.id
   user_profile_name         = aws_sagemaker_user_profile.ss_default_user.user_profile_name
-  # keep app_name as `default` to prevent SageMaker Studio from launching its own JupyterServer 
-  # app instance
-  app_name                  = "default" 
+
+  # keep app_name as `default` to prevent Studio from launching its own JupyterServer app instance
+  app_name                  = "default" # must keep as default
   app_type                  = "JupyterServer"
+
+  depends_on                = [ aws_sagemaker_user_profile.ss_default_user ]
 }
 
 # KernelGateway – The KernelGateway app corresponds to a running SageMaker image container. 
-# Each user can have multiple KernelGateway apps running at a time in a single Studio domain.
+# Each user can have multiple KernelGateway apps running at a time in a single studio domain.
 resource "aws_sagemaker_app" "ss_kernel_gateway_app" {
   domain_id                 = aws_sagemaker_domain.sagemaker_studio_domain.id
   user_profile_name         = aws_sagemaker_user_profile.ss_default_user.user_profile_name
-  app_name                  = "default-kernelgateway-app"
+
+  app_name                  = "default-ml-t3-medium"
   app_type                  = "KernelGateway" 
 
   resource_spec {
     instance_type           = "ml.t3.medium" # default fast start 
     sagemaker_image_arn     = var.ss_notebook_image_arn
   }
+
+  depends_on                = [ aws_sagemaker_user_profile.ss_default_user ]
 }
