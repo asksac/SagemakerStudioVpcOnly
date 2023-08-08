@@ -1,5 +1,7 @@
 # Security Group for VPC Endpoints
 
+# common security group attached to all vpc endpoints
+# only requires 443 inbound port access from within vpc
 resource "aws_security_group" "endpoint_sg" {
   name                        = "${var.app_shortcode}_endpoint_sg"
   vpc_id                      = data.aws_vpc.given.id
@@ -87,16 +89,15 @@ resource "aws_vpc_endpoint" "vpce_cw_logs" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid = "SSMRequiredPermissions"
+        Sid = "CWLogsRequiredPermissions"
         Principal = "*"
         Action = [
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
+          "logs:*",
         ]
         Effect = "Allow"
         Resource = "*"
       },
-    ]        
+    ] 
   })
 
   tags                  = {
@@ -126,7 +127,7 @@ resource "aws_vpc_endpoint" "vpce_sagemaker_api" {
         Effect = "Allow"
         Resource = "*"
       },
-    ]        
+    ] 
   })
 
   tags                  = {
@@ -180,10 +181,10 @@ resource "aws_vpc_endpoint" "vpce_sagemaker_studio" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid = "FullAccess"
+        Sid = "SageMakerStudioRequiredPermissions"
         Principal = "*"
         Action = [
-          "sagemaker:CreateApp",
+          "sagemaker:CreateApp", 
         ]
         Effect = "Allow"
         Resource = "arn:aws:sagemaker:${var.aws_region}:${local.account_id}:app/domain-id/*"
@@ -258,7 +259,7 @@ resource "aws_vpc_endpoint" "vpce_service_catalog" {
   }
 }
 
-# EC2 vcp endpoint enables 'Find VPC' option in Studio UI
+# EC2 vpc endpoint enables 'Find VPC' option in Studio UI
 resource "aws_vpc_endpoint" "vpce_ec2" {
   service_name          = "com.amazonaws.${var.aws_region}.ec2"
   vpc_id                = var.vpc_id
@@ -288,5 +289,121 @@ resource "aws_vpc_endpoint" "vpce_ec2" {
 
   tags                  = {
     Name = "${var.app_shortcode}_ec2"
+  }
+}
+
+# lambda vpc endpoint - enabled calling lambda functions privately through vpc
+resource "aws_vpc_endpoint" "vpce_lambda" {
+  service_name          = "com.amazonaws.${var.aws_region}.lambda"
+  vpc_id                = var.vpc_id
+  subnet_ids            = var.subnet_ids
+  private_dns_enabled   = true
+
+  auto_accept           = true
+  vpc_endpoint_type     = "Interface"
+
+  security_group_ids    = [ aws_security_group.endpoint_sg.id ]
+
+  policy                = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid = "LambdaRequiredPermissions"
+        Principal = "*"
+        Action = [
+          "lambda:InvokeFunction",
+        ]
+        Effect = "Allow"
+        Resource = "*"
+      },
+    ]        
+  })
+
+  tags                  = {
+    Name = "${var.app_shortcode}_lambda"
+  }
+}
+
+
+# codeartifact vpc endpoint - to access PyPi repository
+
+resource "aws_security_group" "codeartifact_sg" {
+  name                        = "${var.app_shortcode}_codeartifact_sg"
+  vpc_id                      = data.aws_vpc.given.id
+
+  ingress {
+    security_groups           = [ aws_security_group.sagemaker_sg.id ]
+    from_port                 = 0
+    to_port                   = 0
+    protocol                  = "-1"
+  }
+
+  egress {
+    cidr_blocks               = ["0.0.0.0/0"]
+    from_port                 = 0
+    to_port                   = 0
+    protocol                  = "-1"
+  }
+}
+
+resource "aws_vpc_endpoint" "vpce_codeartifact_api" {
+  service_name          = "com.amazonaws.${var.aws_region}.codeartifact.api"
+  vpc_id                = var.vpc_id
+  subnet_ids            = var.subnet_ids
+  private_dns_enabled   = true
+
+  auto_accept           = true
+  vpc_endpoint_type     = "Interface"
+
+  security_group_ids    = [ aws_security_group.endpoint_sg.id ]
+
+  policy                = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid = "FullAccess"
+        Principal = "*"
+        Action = [
+          "*",
+        ]
+        Effect = "Allow"
+        Resource = "*"
+      },
+    ]        
+  })
+
+  tags                  = {
+    Name = "${var.app_shortcode}_codeartifact_api"
+  }
+}
+
+resource "aws_vpc_endpoint" "vpce_codeartifact_repo" {
+  service_name          = "com.amazonaws.${var.aws_region}.codeartifact.repositories"
+  vpc_id                = var.vpc_id
+  subnet_ids            = var.subnet_ids
+  private_dns_enabled   = true
+
+  auto_accept           = true
+  vpc_endpoint_type     = "Interface"
+
+  security_group_ids    = [ aws_security_group.endpoint_sg.id ]
+
+  policy                = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid = "FullAccess"
+        Principal = "*"
+        Action = [
+          "*",
+        ]
+        Effect = "Allow"
+        Resource = "*"
+      },
+    ]        
+  })
+
+  tags                  = {
+    Name = "${var.app_shortcode}_codeartifact_repo"
   }
 }
