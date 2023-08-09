@@ -25,3 +25,6 @@
 
 # Ignore terraform lock files
 *.lock.hcl
+
+# Ignore /dist folder
+/dist
