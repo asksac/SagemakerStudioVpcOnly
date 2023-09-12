@@ -28,6 +28,11 @@ variable "app_shortcode" {
   description             = "Specify a short-code or pneumonic for this application or project, used in naming resources"
 }
 
+variable "aws_org_id" {
+  type                    = string
+  description             = "Specify the Organization ID this account belongs to; will be used in identity policies (ResourceOrgId) and resource policies (PrincipalOrgId)"
+}
+
 variable "vpc_id" {
   type                    = string
   description             = "Specify an existing VPC ID to use for resources and endpoints"
