@@ -48,6 +48,10 @@ data "aws_iam_policy_document" "ss_assume_role_policy" {
   }
 }
 
+/* 
+# Removing custom policy in favor of AmazonSageMakerFullAccess managed policy
+
+# Create a custom IAM permissions policy for SageMaker execution role
 resource "aws_iam_policy" "ss_exec_policy" {
   name                      = "${var.ss_domain_name}-execution-policy"
   path                      = "/"
@@ -57,24 +61,26 @@ resource "aws_iam_policy" "ss_exec_policy" {
     Version         = "2012-10-17"
     Statement       = [
       {
+        Sid         = "AllowIamPassRole"
+        Effect      = "Allow"
         Action      = [
           "iam:PassRole",
         ]
         Resource    = "*"
-        Effect      = "Allow"
-        Sid         = "AllowIamPassRole"
       }, 
       {
+        Sid         = "AllowFullEC2Access"
+        Effect      = "Allow"
         Action      = [
           "ec2:*",
         ]
         Resource    = "*"
-        Effect      = "Allow"
-        Sid         = "AllowFullEC2Access"
       }, 
       {
-        "Effect": "Allow",
-        "Action": [
+        Sid         = "AllowKMSAccess"
+        Effect      = "Allow"
+        Effect      = "Allow"
+        Action      = [
           "kms:Encrypt", 
           "kms:Decrypt", 
           "kms:CreateGrant", 
@@ -82,27 +88,27 @@ resource "aws_iam_policy" "ss_exec_policy" {
           "kms:ListKeys", 
         ]
         Resource    = "*"
-        Effect      = "Allow"
-        Sid         = "AllowKMSAccess"
       }, 
       {
+        Sid         = "AllowCloudWatchLogsAccess"
+        Effect      = "Allow"
         Action      = [
           "logs:CreateLogGroup",
         ]
         Resource    = "arn:aws:logs:${var.aws_region}:${local.account_id}:*"
-        Effect      = "Allow"
-        Sid         = "AllowCloudWatchLogsAccess"
       }, 
       {
+        Sid         = "AllowCloudWatchPutLogEvents"
+        Effect      = "Allow"
         Action      = [
           "logs:CreateLogStream",
           "logs:PutLogEvents"
         ]
         Resource    = "arn:aws:logs:${var.aws_region}:${local.account_id}:log-group:*:*"
-        Effect      = "Allow"
-        Sid         = "AllowCloudWatchPutLogEvents"
       }, 
       {
+        Sid         = "AllowS3ReadWriteAccess"
+        Effect      = "Allow"
         Action      = [
           "s3:Get*",
           "s3:PutObject",
@@ -111,26 +117,32 @@ resource "aws_iam_policy" "ss_exec_policy" {
           "s3:ListAllMyBuckets",
         ]
         Resource    = "arn:aws:s3:::*"
-        Effect      = "Allow"
-        Sid         = "AllowS3ReadWriteAccess"
       }, 
       # required for SageMaker JumpStart
       {
-        Effect      = "Allow",
+        Sid         = "RequiredForProvisingJumpStartSolutions"
+        Effect      = "Allow"
         Action      = [
             "servicecatalog:ProvisionProduct"
         ],
         Resource    = "*"
       },      
       {
-        Effect      = "Allow",
-        Action      = "codeartifact:GetAuthorizationToken",
+        Sid         = "RequiredForCodeArtifactLogin"
+        Effect      = "Allow"
+        Action      = "codeartifact:GetAuthorizationToken"
         Resource    = aws_codeartifact_domain.main.arn # "arn:aws:codeartifact:<region>:<account_no>:domain/<domain_name>"
       },
       {
-        Effect      = "Allow",
-        Action      = "sts:GetServiceBearerToken",
+        Sid         = "RequiredForGetAuthorizationTokenAPI"
+        Effect      = "Allow"
+        Action      = "sts:GetServiceBearerToken"
         Resource    = "*"
+        Condition   = {
+          StringEquals = {
+            "sts:AWSServiceName" = "codeartifact.amazonaws.com"
+          }
+        }
       }
     ]
   })
@@ -140,7 +152,7 @@ resource "aws_iam_role_policy_attachment" "ss_exec_policy_attachment" {
   role                      = aws_iam_role.ss_exec_role.name
   policy_arn                = aws_iam_policy.ss_exec_policy.arn
 }
-
+*/
 
 # Attach AmazonSageMakerFullAccess to Studio Execution Role 
 data "aws_iam_policy" "sagemaker_managed_policy" {
@@ -151,6 +163,10 @@ resource "aws_iam_role_policy_attachment" "ss_exec_managed_policy_attachment_1" 
   role                      = aws_iam_role.ss_exec_role.name
   policy_arn                = data.aws_iam_policy.sagemaker_managed_policy.arn
 }
+
+/* 
+
+## Setup SageMaker Canvas permissions 
 
 # Attach AmazonSageMakerCanvasFullAccess and AmazonSageMakerCanvasAIServicesAccess
 # managed policies to enable support for Canvas in SageMaker Studio 
@@ -172,3 +188,4 @@ resource "aws_iam_role_policy_attachment" "ss_exec_managed_policy_attachment_3" 
   policy_arn                = data.aws_iam_policy.sagemaker_canvas_ai_managed_policy.arn
 }
 
+*/
